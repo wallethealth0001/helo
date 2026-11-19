@@ -5,7 +5,7 @@ import { BSC } from '../config/chains'
 import type { WalletStatus } from '../types/wallet'
 import { isAddress } from '../utils/address'
 import { walletErrorDetails, walletErrorMessage } from '../utils/walletErrors'
-import { buildTrustWalletLink, openTrustWalletScheme } from '../services/trustWalletService'
+import { buildTrustWalletLink, openTrustWalletScheme, openTrustWalletUniversal } from '../services/trustWalletService'
 
 type WalletSession = NonNullable<UniversalProvider['session']>
 type ConnectionMethod = 'qr' | 'trust'
@@ -117,6 +117,9 @@ export function useWallet() {
           setTrustWalletLink(link)
           console.info('[TRUST] Deep link constructed')
           setError(null)
+          if (!openTrustWalletUniversal(nextUri)) {
+            setError('Trust Wallet could not be opened. Scan the QR code or copy the pairing URI.')
+          }
           console.info('[TRUST] Connection waiting')
         }
         console.info('[WalletConnect] Waiting for approval')
