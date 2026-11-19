@@ -5,7 +5,7 @@ import { BSC } from '../config/chains'
 import type { WalletStatus } from '../types/wallet'
 import { isAddress } from '../utils/address'
 import { walletErrorDetails, walletErrorMessage } from '../utils/walletErrors'
-import { buildTrustWalletLink, buildTrustWalletSchemeLink, navigateTrustWallet } from '../services/trustWalletService'
+import { buildTrustWalletLink, openTrustWalletScheme } from '../services/trustWalletService'
 
 type WalletSession = NonNullable<UniversalProvider['session']>
 type ConnectionMethod = 'qr' | 'trust'
@@ -24,7 +24,6 @@ export function useWallet() {
   const connectionInProgress = useRef(false)
   const cancelled = useRef(false)
   const lastConnectionMethod = useRef<ConnectionMethod>('qr')
-  const pendingWalletTab = useRef<Window | null>(null)
 
   const applySession = (wcProvider: UniversalProvider, session: WalletSession) => {
     const namespace = session.namespaces.eip155
@@ -97,10 +96,9 @@ export function useWallet() {
     }
   }, [provider])
 
-  const runConnection = async (method: ConnectionMethod, walletTab: Window | null = null) => {
+  const runConnection = async (method: ConnectionMethod) => {
     if (connectionInProgress.current) return
     connectionInProgress.current = true
-    pendingWalletTab.current = walletTab
     cancelled.current = false
     lastConnectionMethod.current = method
     setInitializing(true)
@@ -118,9 +116,7 @@ export function useWallet() {
           const link = buildTrustWalletLink(nextUri)
           setTrustWalletLink(link)
           console.info('[TRUST] Deep link constructed')
-          if (!navigateTrustWallet(walletTab, nextUri)) {
-            setError('Trust Wallet did not open automatically. Scan the QR code, copy the URI, or retry Trust Wallet.')
-          }
+          setError(null)
           console.info('[TRUST] Connection waiting')
         }
         console.info('[WalletConnect] Waiting for approval')
@@ -134,8 +130,6 @@ export function useWallet() {
       setUri(null)
       setUriCopied(false)
       setTrustWalletLink(null)
-      if (pendingWalletTab.current && !pendingWalletTab.current.closed) pendingWalletTab.current.close()
-      pendingWalletTab.current = null
     } catch (caught) {
       if (cancelled.current) return
       const details = walletErrorDetails(caught)
@@ -143,10 +137,8 @@ export function useWallet() {
       console.error('[WalletConnect] Connection failed', details)
       setStatus('failed')
       setError(walletErrorMessage(caught))
-      if (walletTab && !walletTab.closed) walletTab.close()
     } finally {
       connectionInProgress.current = false
-      pendingWalletTab.current = null
       setInitializing(false)
     }
   }
@@ -158,14 +150,7 @@ export function useWallet() {
   const connectTrust = () => {
     if (connectionInProgress.current) return
     console.info('[TRUST] Button clicked')
-    let walletTab: Window | null = null
-    try {
-      walletTab = window.open('about:blank', '_blank')
-    } catch (caught) {
-      console.error('[TRUST] Temporary tab could not be opened', walletErrorDetails(caught))
-    }
-    console.info('[TRUST] Temporary tab opened', { opened: Boolean(walletTab) })
-    void runConnection('trust', walletTab)
+    void runConnection('trust')
   }
 
   const retry = () => {
@@ -176,15 +161,9 @@ export function useWallet() {
   const retryTrustWallet = () => {
     if (!uri) return
     console.info('[TRUST] Retry button clicked')
-    const appLink = buildTrustWalletSchemeLink(uri)
     console.info('[TRUST] Custom URI fallback constructed')
-    try {
-      const opened = window.open(appLink, '_blank')
-      if (!opened) setError('Safari blocked the Trust Wallet app link. Use the QR code or copy the WalletConnect URI.')
-    } catch (caught) {
-      const details = walletErrorDetails(caught)
-      console.error('[TRUST] Custom URI fallback failed', details)
-      setError(walletErrorMessage(caught))
+    if (!openTrustWalletScheme(uri)) {
+      setError('Safari blocked the Trust Wallet app link. Use the QR code or copy the WalletConnect URI.')
     }
   }
 
@@ -204,8 +183,6 @@ export function useWallet() {
   const cancel = async () => {
     cancelled.current = true
     walletConnectService.cancelConnection()
-    if (pendingWalletTab.current && !pendingWalletTab.current.closed) pendingWalletTab.current.close()
-    pendingWalletTab.current = null
     setUri(null)
     setUriCopied(false)
     setTrustWalletLink(null)

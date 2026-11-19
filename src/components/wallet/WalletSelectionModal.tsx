@@ -42,7 +42,7 @@ export function WalletSelectionModal(props: Props) {
               {props.trustWalletLink && (
                 <>
                   <p>If Trust Wallet does not open, launch it manually and scan this QR code or copy the pairing URI.</p>
-                  <p><a href={props.trustWalletLink} target="_blank" rel="noreferrer">Open Trust Wallet</a></p>
+                  <p><a href={props.trustWalletLink}>Open Trust Wallet</a></p>
                   <div className="modal-actions">
                     <button className="secondary-button" onClick={props.onCopyUri}>
                       {props.uriCopied ? 'URI copied' : 'Copy WalletConnect URI'}
