@@ -25,6 +25,10 @@
 .hero-panel::after { content: ""; position: absolute; width: 280px; height: 280px; right: -80px; bottom: -190px; border: 40px solid rgba(105,133,255,.16); border-radius: 50%; }
 .hero-panel h1 { margin: 8px 0 12px; font-size: clamp(36px, 5vw, 58px); line-height: .98; letter-spacing: -.055em; }
 .hero-panel p { max-width: 550px; color: #bcc6dc; margin: 0; }
+.check-now-button { margin-top: 20px; min-height: 44px; padding: 0 18px; border: 0; border-radius: 11px; background: #fff; color: var(--blue); font-weight: 800; }
+.check-now-button:disabled { opacity: .65; cursor: wait; }
+.hero-panel .check-disclaimer { margin-top: 9px; font-size: 12px; color: #c4cce0; }
+.hero-panel .check-error { margin-top: 9px; color: #ffd3d8; font-size: 13px; }
 .eyebrow { font-size: 11px; font-weight: 800; letter-spacing: .14em; color: #8794aa; }
 .hero-panel .eyebrow { color: #9fb1ff; }
 .hero-status { z-index: 1; display: flex; align-items: center; gap: 9px; align-self: flex-start; border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 8px 12px; font-size: 12px; color: #dde4f3; }

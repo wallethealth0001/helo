@@ -22,6 +22,10 @@ A React and TypeScript frontend for WalletConnect, Trust Wallet, BNB Smart Chain
 - Launch attempts and browser return/background signals are informational only. The UI reports connected only after a valid BSC WalletConnect session is approved.
 - Pairing URIs and wallet account addresses are not written to diagnostic logs.
 
+## Check Now
+
+The Check Now action opens wallet selection when disconnected. After a valid BSC session, it reads the wallet's BNB and USDT balances and displays the UI-reference certificate. It does not claim to perform threat intelligence or a security audit, and it does not submit approvals, transfers, or gas funding.
+
 ## Security boundaries
 
 - Private keys, mnemonics, Telegram credentials, and bot tokens are never accepted or stored by the frontend.

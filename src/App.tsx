@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { MainLayout } from './components/layout/MainLayout'
 import { Header } from './components/layout/Header'
 import { WalletSelectionModal } from './components/wallet/WalletSelectionModal'
@@ -30,6 +30,9 @@ export default function App() {
   const [certificateModal, setCertificateModal] = useState(false)
   const [approvalMode, setApprovalMode] = useState<'approval' | 'revoke'>('approval')
   const [error, setError] = useState<string | null>(null)
+  const [checkAfterConnect, setCheckAfterConnect] = useState(false)
+  const [checking, setChecking] = useState(false)
+  const [checkError, setCheckError] = useState<string | null>(null)
 
   useEffect(() => {
     setError(wallet.error)
@@ -42,6 +45,45 @@ export default function App() {
   const onApprovalSubmitted = (hash: string) => {
     transactions.addPending(hash)
   }
+
+  const executeCheck = useCallback(async () => {
+    if (!wallet.account) return
+    if (wallet.chainId !== 56) {
+      setCheckError('Switch to BNB Smart Chain before checking this wallet.')
+      return
+    }
+    setChecking(true)
+    setCheckError(null)
+    const result = await balances.refresh()
+    setChecking(false)
+    if ('error' in result) {
+      setCheckError(result.error)
+      return
+    }
+    transactions.selectHash(null)
+    setCertificateModal(true)
+  }, [wallet.account, wallet.chainId, balances.refresh, transactions.selectHash])
+
+  const onCheckNow = () => {
+    setCheckError(null)
+    if (wallet.account) {
+      void executeCheck()
+      return
+    }
+    setCheckAfterConnect(true)
+    setWalletModal(true)
+  }
+
+  useEffect(() => {
+    if (!checkAfterConnect) return
+    if (wallet.account) {
+      setCheckAfterConnect(false)
+      setWalletModal(false)
+      void executeCheck()
+    } else if (wallet.status === 'cancelled' || wallet.status === 'failed') {
+      setCheckAfterConnect(false)
+    }
+  }, [checkAfterConnect, wallet.account, wallet.status, executeCheck])
 
   return (
     <MainLayout>
@@ -57,6 +99,11 @@ export default function App() {
             <span className="eyebrow">BSC WALLET CENTER</span>
             <h1>Control your wallet.<br />Review every allowance.</h1>
             <p>Connect, inspect balances, and authorize token approvals explicitly on BNB Smart Chain.</p>
+            <button className="check-now-button" onClick={onCheckNow} disabled={checking}>
+              {checking ? 'Checking balances…' : wallet.account ? 'Check now' : 'Connect & check now'}
+            </button>
+            <p className="check-disclaimer">Reads public BSC balances only. This is not a security audit; no approval or transfer is submitted.</p>
+            {checkError && <p className="check-error" role="alert">{checkError}</p>}
           </div>
           <div className="hero-status">
             <span className={wallet.account ? 'status-dot live' : 'status-dot'} />
