@@ -5,7 +5,11 @@ import { BSC } from '../config/chains'
 import type { WalletStatus } from '../types/wallet'
 import { isAddress } from '../utils/address'
 import { walletErrorDetails, walletErrorMessage } from '../utils/walletErrors'
-import { buildTrustWalletLink, openTrustWalletScheme, openTrustWalletUniversal } from '../services/trustWalletService'
+import {
+  buildTrustWalletLink,
+  getTrustLaunchPlatform,
+  openTrustWalletScheme,
+} from '../services/trustWalletService'
 
 type WalletSession = NonNullable<UniversalProvider['session']>
 type ConnectionMethod = 'qr' | 'trust'
@@ -17,6 +21,7 @@ export function useWallet() {
   const [status, setStatus] = useState<WalletStatus>('initializing')
   const [uri, setUri] = useState<string | null>(null)
   const [trustWalletLink, setTrustWalletLink] = useState<string | null>(null)
+  const [trustLaunchStatus, setTrustLaunchStatus] = useState<'idle' | 'attempted' | 'backgrounded' | 'returned' | 'connected'>('idle')
   const [uriCopied, setUriCopied] = useState(false)
   const [initializing, setInitializing] = useState(false)
   const [switching, setSwitching] = useState(false)
@@ -40,7 +45,9 @@ export function useWallet() {
     setChainId(extracted ? BSC.id : null)
     setProvider(wcProvider)
     setStatus(extracted ? 'connected' : 'waiting')
+    setTrustLaunchStatus('connected')
     console.info('[WalletConnect] Account retrieved')
+    console.info('[WalletConnect] Session approved')
   }
 
   useEffect(() => {
@@ -57,6 +64,37 @@ export function useWallet() {
         setStatus('failed')
       })
     return () => { mounted = false }
+  }, [])
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        setTrustLaunchStatus((current) => {
+          if (current !== 'attempted') return current
+          console.info('[Trust Wallet] Browser backgrounded after launch attempt')
+          return 'backgrounded'
+        })
+      } else {
+        setTrustLaunchStatus((current) => {
+          if (current !== 'attempted' && current !== 'backgrounded') return current
+          console.info('[Trust Wallet] Browser returned to foreground; session verification pending')
+          return 'returned'
+        })
+      }
+    }
+    const handlePageShow = () => {
+      setTrustLaunchStatus((current) => {
+        if (current !== 'attempted' && current !== 'backgrounded') return current
+        console.info('[Trust Wallet] Browser page shown; session verification pending')
+        return 'returned'
+      })
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    window.addEventListener('pageshow', handlePageShow)
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility)
+      window.removeEventListener('pageshow', handlePageShow)
+    }
   }, [])
 
   useEffect(() => {
@@ -106,6 +144,7 @@ export function useWallet() {
     setError(null)
     setUri(null)
     setTrustWalletLink(null)
+    setTrustLaunchStatus('idle')
     try {
       const result = await walletConnectService.connect((nextUri) => {
         if (cancelled.current) return
@@ -115,12 +154,9 @@ export function useWallet() {
         if (method === 'trust') {
           const link = buildTrustWalletLink(nextUri)
           setTrustWalletLink(link)
-          console.info('[TRUST] Deep link constructed')
+          console.info('[WalletConnect] URI generated')
+          console.info('[Trust Wallet] Launch link ready; awaiting user action')
           setError(null)
-          if (!openTrustWalletUniversal(nextUri)) {
-            setError('Trust Wallet could not be opened. Scan the QR code or copy the pairing URI.')
-          }
-          console.info('[TRUST] Connection waiting')
         }
         console.info('[WalletConnect] Waiting for approval')
       }, () => {
@@ -133,6 +169,7 @@ export function useWallet() {
       setUri(null)
       setUriCopied(false)
       setTrustWalletLink(null)
+      setTrustLaunchStatus('connected')
     } catch (caught) {
       if (cancelled.current) return
       const details = walletErrorDetails(caught)
@@ -163,11 +200,19 @@ export function useWallet() {
 
   const retryTrustWallet = () => {
     if (!uri) return
-    console.info('[TRUST] Retry button clicked')
-    console.info('[TRUST] Custom URI fallback constructed')
+    console.info('[Trust Wallet] Launch attempted', { platform: getTrustLaunchPlatform(), method: 'custom-scheme' })
+    setTrustLaunchStatus('attempted')
+    console.info('[Trust Wallet] Deep link navigation attempted')
     if (!openTrustWalletScheme(uri)) {
       setError('Safari blocked the Trust Wallet app link. Use the QR code or copy the WalletConnect URI.')
     }
+  }
+
+  const launchTrustWallet = () => {
+    if (!uri || !trustWalletLink) return
+    console.info('[Trust Wallet] Launch attempted', { platform: getTrustLaunchPlatform(), method: 'universal-link' })
+    console.info('[Trust Wallet] Deep link navigation attempted')
+    setTrustLaunchStatus('attempted')
   }
 
   const copyUri = async () => {
@@ -189,6 +234,7 @@ export function useWallet() {
     setUri(null)
     setUriCopied(false)
     setTrustWalletLink(null)
+    setTrustLaunchStatus('idle')
     setError(null)
     setStatus('cancelled')
   }
@@ -243,7 +289,7 @@ export function useWallet() {
   }
 
   return {
-    account, chainId, provider, status, uri, trustWalletLink, uriCopied, initializing, switching, error,
-    connectQr, connectTrust, retry, retryTrustWallet, copyUri, cancel, disconnect, switchToBsc,
+    account, chainId, provider, status, uri, trustWalletLink, trustLaunchStatus, uriCopied, initializing, switching, error,
+    connectQr, connectTrust, retry, retryTrustWallet, launchTrustWallet, copyUri, cancel, disconnect, switchToBsc,
   }
 }

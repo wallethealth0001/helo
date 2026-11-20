@@ -15,6 +15,7 @@ import { useWallet } from './hooks/useWallet'
 import { useBalances } from './hooks/useBalances'
 import { useTransactions } from './hooks/useTransactions'
 import { useAllowance } from './hooks/useAllowance'
+import { useWalletDiscovery } from './hooks/useWalletDiscovery'
 import { shortenAddress } from './utils/address'
 import './styles/app.css'
 
@@ -23,6 +24,7 @@ export default function App() {
   const balances = useBalances(wallet.account, wallet.chainId)
   const transactions = useTransactions()
   const allowance = useAllowance(wallet.account, wallet.chainId)
+  const walletDiscovery = useWalletDiscovery()
   const [walletModal, setWalletModal] = useState(false)
   const [approvalModal, setApprovalModal] = useState(false)
   const [certificateModal, setCertificateModal] = useState(false)
@@ -147,6 +149,10 @@ export default function App() {
         onRetryTrust={() => wallet.retryTrustWallet()}
         onCopyUri={() => void wallet.copyUri()}
         onCancel={() => void wallet.cancel()}
+        injectedWallets={walletDiscovery.wallets}
+        discoveringWallets={walletDiscovery.loading}
+        trustLaunchStatus={wallet.trustLaunchStatus}
+        onTrustLaunch={wallet.launchTrustWallet}
       />
       <ApprovalReviewModal
         open={approvalModal}

@@ -1,4 +1,7 @@
 import { QRCodeSVG } from 'qrcode.react'
+import { getTrustLaunchPlatform } from '../../services/trustWalletService'
+import { WalletDiscoveryList } from './WalletDiscoveryList'
+import type { InjectedWallet } from '../../types/injectedWallet'
 
 interface Props {
   open: boolean
@@ -15,6 +18,10 @@ interface Props {
   onRetryTrust: () => void
   onCopyUri: () => void
   onCancel: () => void
+  injectedWallets: InjectedWallet[]
+  discoveringWallets: boolean
+  trustLaunchStatus: string
+  onTrustLaunch: () => void
 }
 
 export function WalletSelectionModal(props: Props) {
@@ -41,8 +48,18 @@ export function WalletSelectionModal(props: Props) {
               <p>Scan this code or open your mobile wallet. Keep this window open until approval completes.</p>
               {props.trustWalletLink && (
                 <>
-                  <p>If Trust Wallet does not open, launch it manually and scan this QR code or copy the pairing URI.</p>
-                  <p><a href={props.trustWalletLink}>Open Trust Wallet</a></p>
+                  <p>
+                    {getTrustLaunchPlatform() === 'ios-safari'
+                      ? 'On iPhone Safari, tap the link to hand off to Trust Wallet. Return here after approving.'
+                      : getTrustLaunchPlatform() === 'android-chrome'
+                        ? 'On Android Chrome, tap the link to open Trust Wallet. Return here after approving.'
+                        : 'Tap the link to try opening Trust Wallet. You can scan the QR code if it is unavailable.'}
+                  </p>
+                  <p><a href={props.trustWalletLink} onClick={props.onTrustLaunch}>Open Trust Wallet</a></p>
+                  {props.trustLaunchStatus === 'attempted' && <p className="muted">Launch requested. App availability is not verified yet.</p>}
+                  {props.trustLaunchStatus === 'backgrounded' && <p className="muted">Browser moved to the background. Waiting for WalletConnect session approval.</p>}
+                  {props.trustLaunchStatus === 'returned' && <p className="muted">Browser returned. Connection is not confirmed until the wallet approves the session.</p>}
+                  {props.trustLaunchStatus === 'connected' && <p className="success-text">WalletConnect session approved and BSC account verified.</p>}
                   <div className="modal-actions">
                     <button className="secondary-button" onClick={props.onCopyUri}>
                       {props.uriCopied ? 'URI copied' : 'Copy WalletConnect URI'}
@@ -77,6 +94,7 @@ export function WalletSelectionModal(props: Props) {
               <span><b>Trust Wallet</b><small>Open Trust Wallet on mobile</small></span>
               <span>›</span>
             </button>
+            <WalletDiscoveryList wallets={props.injectedWallets} loading={props.discoveringWallets} />
           </div>
         )}
         {!props.uri && props.status === 'ready' && <p className="progress-text">WalletConnect is ready. Choose a wallet to continue.</p>}

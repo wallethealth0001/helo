@@ -8,16 +8,18 @@ export function buildTrustWalletSchemeLink(uri: string): string {
   return `trust://wc?uri=${encodeURIComponent(uri)}`
 }
 
-export function openTrustWalletUniversal(uri: string): boolean {
-  if (!uri) return false
-  try {
-    console.info('[TRUST] Universal link navigation started')
-    window.location.assign(buildTrustWalletLink(uri))
-    return true
-  } catch (error) {
-    console.error('[TRUST] Universal link navigation failed', walletErrorDetails(error))
-    return false
-  }
+export type TrustLaunchPlatform = 'ios-safari' | 'android-chrome' | 'desktop' | 'other-mobile'
+
+export function detectTrustLaunchPlatform(userAgent: string, platform = ''): TrustLaunchPlatform {
+  const ios = /iPhone|iPad|iPod/i.test(userAgent) || (platform === 'MacIntel' && /Macintosh/i.test(userAgent))
+  if (ios && /Safari/i.test(userAgent) && !/CriOS|FxiOS|EdgiOS/i.test(userAgent)) return 'ios-safari'
+  if (/Android/i.test(userAgent) && /Chrome/i.test(userAgent)) return 'android-chrome'
+  if (/Android|iPhone|iPad|iPod/i.test(userAgent)) return 'other-mobile'
+  return 'desktop'
+}
+
+export function getTrustLaunchPlatform(): TrustLaunchPlatform {
+  return detectTrustLaunchPlatform(navigator.userAgent, navigator.platform)
 }
 
 export function openTrustWalletScheme(uri: string): boolean {
